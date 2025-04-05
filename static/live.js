@@ -48,8 +48,6 @@ async function toggleLiveVoiceChange() {
         }
         
         // Create ScriptProcessor for pitch shifting
-        // Note: ScriptProcessor is deprecated but still widely supported
-        // For production, consider using AudioWorklet when better supported
         const bufferSize = 4096;
         pitchShifterNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
         
@@ -65,39 +63,8 @@ async function toggleLiveVoiceChange() {
             pitchShift = 4; // Shift down for female to male
         }
         
-        // Simple pitch shifting algorithm
-        // This is a basic implementation - for better quality, consider libraries like Tuna.js
-        let phase = 0;
-        pitchShifterNode.onaudioprocess = function(audioProcessingEvent) {
-            const inputBuffer = audioProcessingEvent.inputBuffer;
-            const outputBuffer = audioProcessingEvent.outputBuffer;
-            
-            // Simple pitch shifting by resampling
-            // This is a basic implementation and will have artifacts
-            for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
-                const inputData = inputBuffer.getChannelData(channel);
-                const outputData = outputBuffer.getChannelData(channel);
-                
-                // Pitch shift factor (1.0 = no change, 0.5 = octave down, 2.0 = octave up)
-                const pitchFactor = Math.pow(2, pitchShift / 12);
-                
-                for (let i = 0; i < inputBuffer.length; i++) {
-                    // Simple resampling
-                    const readIndex = i / pitchFactor;
-                    const readIndexFloor = Math.floor(readIndex);
-                    const readIndexCeil = Math.ceil(readIndex);
-                    const fraction = readIndex - readIndexFloor;
-                    
-                    // Linear interpolation
-                    if (readIndexCeil < inputBuffer.length) {
-                        outputData[i] = inputData[readIndexFloor] * (1 - fraction) + 
-                                        inputData[readIndexCeil] * fraction;
-                    } else {
-                        outputData[i] = 0;
-                    }
-                }
-            }
-        };
+        // Apply the pitch shifting effect
+        updatePitchShifter(pitchShift);
         
         // Connect nodes: source -> pitchShifter -> destination
         sourceNode.disconnect(analyser);
@@ -144,12 +111,58 @@ function updateLiveEffect() {
         livePitchControl.style.display = 'none';
     }
     
-    // If live processing is active, restart it with new settings
-    if (isLiveActive) {
-        toggleLiveVoiceChange().then(() => {
-            toggleLiveVoiceChange();
-        });
+    // If live processing is active, update the pitch shift without stopping/starting
+    if (isLiveActive && pitchShifterNode) {
+        // Get new pitch shift amount based on selected conversion type
+        let pitchShift;
+        
+        if (conversionType === 'custom') {
+            pitchShift = parseFloat(document.getElementById('livePitch').value);
+        } else if (conversionType === 'male_to_female') {
+            pitchShift = -4; // Shift up for male to female
+        } else {
+            pitchShift = 4; // Shift down for female to male
+        }
+        
+        // Update the pitch shifter node with new pitch value
+        updatePitchShifter(pitchShift);
     }
+}
+
+// Function to update pitch shifter with new value
+function updatePitchShifter(pitchShift) {
+    if (!pitchShifterNode) return;
+    
+    // Update the onaudioprocess handler with the new pitch value
+    pitchShifterNode.onaudioprocess = function(audioProcessingEvent) {
+        const inputBuffer = audioProcessingEvent.inputBuffer;
+        const outputBuffer = audioProcessingEvent.outputBuffer;
+        
+        // Simple pitch shifting by resampling
+        for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+            const inputData = inputBuffer.getChannelData(channel);
+            const outputData = outputBuffer.getChannelData(channel);
+            
+            // Pitch shift factor (1.0 = no change, 0.5 = octave down, 2.0 = octave up)
+            const pitchFactor = Math.pow(2, pitchShift / 12);
+            
+            for (let i = 0; i < inputBuffer.length; i++) {
+                // Simple resampling
+                const readIndex = i / pitchFactor;
+                const readIndexFloor = Math.floor(readIndex);
+                const readIndexCeil = Math.ceil(readIndex);
+                const fraction = readIndex - readIndexFloor;
+                
+                // Linear interpolation
+                if (readIndexCeil < inputBuffer.length) {
+                    outputData[i] = inputData[readIndexFloor] * (1 - fraction) + 
+                                    inputData[readIndexCeil] * fraction;
+                } else {
+                    outputData[i] = 0;
+                }
+            }
+        }
+    };
 }
 
 // Update pitch value display when slider changes
@@ -165,10 +178,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('livePitch').addEventListener('input', function() {
         updateLivePitchValue();
         if (isLiveActive) {
-            // Restart with new pitch value if already active
-            toggleLiveVoiceChange().then(() => {
-                toggleLiveVoiceChange();
-            });
+            // Update pitch value without restarting
+            const pitchShift = parseFloat(document.getElementById('livePitch').value);
+            updatePitchShifter(pitchShift);
         }
     });
     
