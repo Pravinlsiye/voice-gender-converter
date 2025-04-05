@@ -32,7 +32,30 @@
         <div class="live-controls">
             <button id="startLive" class="action-button">Start Live Voice Change</button>
             <div id="liveStatus" class="status-message"></div>
+            <div class="auto-record-option">
+                <input type="checkbox" id="autoRecord" name="autoRecord">
+                <label for="autoRecord">Automatically record when live voice changing starts</label>
+            </div>
         </div>
+
+        <div class="recording-controls">
+            <button id="recordLive" class="action-button">Start Recording</button>
+            <div id="liveRecordingStatus"></div>
+        </div>
+
+    <div id="originalAudioContainer" style="display: none;" class="result-container">
+        <h3>Original Audio</h3>
+        <audio id="originalAudio" controls></audio>
+        <a id="downloadOriginal" class="download-button">Download Original</a>
+        <a id="clearOriginal" class="download-button">Clear Original</a>
+    </div>
+
+    <div id="convertedAudioContainer" style="display: none;" class="result-container">
+        <h3>Converted Audio</h3>
+        <audio id="convertedAudio" controls></audio>
+        <a id="downloadConverted" class="download-button">Download Converted</a>
+        <a id="clearConverted" class="download-button">Clear Converted</a>
+    </div>
     </div>
     <script src="{{ url_for('static', filename='live.js') }}"></script>
 </body>

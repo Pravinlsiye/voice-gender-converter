@@ -6,6 +6,15 @@ let isLiveActive = false;
 let analyser;
 let stream;
 
+// Recording variables
+let isRecording = false;
+let originalRecorder;
+let convertedRecorder;
+let originalAudioChunks = [];
+let convertedAudioChunks = [];
+let originalBlob;
+let convertedBlob;
+
 // Initialize Web Audio API
 async function initAudio() {
     try {
@@ -34,6 +43,8 @@ async function initAudio() {
 }
 
 // Function to start/stop live voice changing
+// In the toggleLiveVoiceChange function, add this code where you start the live voice changing
+
 async function toggleLiveVoiceChange() {
     const button = document.getElementById('startLive');
     const statusElement = document.getElementById('liveStatus');
@@ -67,10 +78,12 @@ async function toggleLiveVoiceChange() {
         updatePitchShifter(pitchShift);
         
         // Connect nodes: source -> pitchShifter -> destination
+        // Fix echo issue by not connecting analyser to destination
         sourceNode.disconnect(analyser);
         sourceNode.connect(pitchShifterNode);
         pitchShifterNode.connect(audioContext.destination);
-        analyser.connect(audioContext.destination);
+        // Only connect analyser for visualization, not to audio output
+        sourceNode.connect(analyser);
         
         // Update UI
         button.textContent = 'Stop Live Voice Change';
@@ -78,12 +91,19 @@ async function toggleLiveVoiceChange() {
         statusElement.style.color = 'green';
         isLiveActive = true;
         
+        // Check if auto-record is enabled and start recording if it is
+        if (document.getElementById('autoRecord').checked) {
+            // Only start recording if not already recording
+            if (!isRecording) {
+                toggleLiveRecording();
+            }
+        }
+        
     } else {
         // Disconnect and clean up
         if (pitchShifterNode) {
             sourceNode.disconnect(pitchShifterNode);
             pitchShifterNode.disconnect(audioContext.destination);
-            analyser.disconnect(audioContext.destination);
             sourceNode.connect(analyser);
         }
         
@@ -92,11 +112,98 @@ async function toggleLiveVoiceChange() {
             stream.getTracks().forEach(track => track.stop());
         }
         
+        // Stop recording if it's active and auto-record was enabled
+        if (isRecording && document.getElementById('autoRecord').checked) {
+            toggleLiveRecording();
+        }
+        
         // Update UI
         button.textContent = 'Start Live Voice Change';
         statusElement.textContent = 'Live voice changing stopped';
         statusElement.style.color = 'blue';
         isLiveActive = false;
+    }
+}
+
+// Modify the toggleLiveRecording function to improve audio quality
+function toggleLiveRecording() {
+    const recordButton = document.getElementById('recordLive');
+    const recordingStatus = document.getElementById('liveRecordingStatus');
+    
+    if (!isRecording) {
+        if (!isLiveActive) {
+            alert('Please start live voice changing first');
+            return;
+        }
+        
+        // Start recording both original and converted audio
+        isRecording = true;
+    
+        
+        // Record original audio from microphone
+        originalRecorder = new MediaRecorder(stream);
+        originalAudioChunks = [];
+        originalRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                originalAudioChunks.push(event.data);
+            }
+        };
+        originalRecorder.onstop = () => {
+            originalBlob = new Blob(originalAudioChunks, { type: 'audio/wav' });
+            document.getElementById('originalAudio').src = URL.createObjectURL(originalBlob);
+            document.getElementById('originalAudioContainer').style.display = 'block';
+            
+            // Auto download if auto-record is enabled
+            if (document.getElementById('autoRecord').checked) {
+                downloadOriginalAudio();
+            }
+        };
+        originalRecorder.start();
+        
+        // Record converted audio from output
+        // Create a separate destination for recording to avoid feedback
+        const convertedStream = audioContext.createMediaStreamDestination();
+        // Connect the pitch shifter to the recording destination without affecting the main output
+        pitchShifterNode.connect(convertedStream);
+        
+        convertedRecorder = new MediaRecorder(convertedStream.stream);
+        convertedAudioChunks = [];
+        convertedRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                convertedAudioChunks.push(event.data);
+            }
+        };
+        convertedRecorder.onstop = () => {
+            convertedBlob = new Blob(convertedAudioChunks, { type: 'audio/wav' });
+            document.getElementById('convertedAudio').src = URL.createObjectURL(convertedBlob);
+            document.getElementById('convertedAudioContainer').style.display = 'block';
+            
+            // Auto download if auto-record is enabled
+            if (document.getElementById('autoRecord').checked) {
+                downloadConvertedAudio();
+            }
+        };
+        convertedRecorder.start();
+        
+        // Update UI
+        recordButton.textContent = 'Stop Recording';
+        recordingStatus.textContent = 'Recording in progress...';
+        recordingStatus.style.color = 'red';
+        
+    } else {
+        // Stop recording
+        if (originalRecorder && originalRecorder.state !== 'inactive') {
+            originalRecorder.stop();
+        }
+        if (convertedRecorder && convertedRecorder.state !== 'inactive') {
+            convertedRecorder.stop();
+        }
+        
+        // Update UI
+        isRecording = false;
+        recordButton.textContent = 'Start Recording';
+        recordingStatus.textContent = 'Recording stopped';
+        recordingStatus.style.color = 'blue';
     }
 }
 
@@ -170,6 +277,121 @@ function updateLivePitchValue() {
     document.getElementById('livePitchValue').textContent = document.getElementById('livePitch').value;
 }
 
+// Function to start/stop recording the live session
+function toggleLiveRecording() {
+    const recordButton = document.getElementById('recordLive');
+    const recordingStatus = document.getElementById('liveRecordingStatus');
+    
+    if (!isRecording) {
+        if (!isLiveActive) {
+            alert('Please start live voice changing first');
+            return;
+        }
+        
+        // Start recording both original and converted audio
+        isRecording = true;
+        
+        // Record original audio from microphone
+        originalRecorder = new MediaRecorder(stream);
+        originalAudioChunks = [];
+        originalRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                originalAudioChunks.push(event.data);
+            }
+        };
+        originalRecorder.onstop = () => {
+            originalBlob = new Blob(originalAudioChunks, { type: 'audio/wav' });
+            document.getElementById('originalAudio').src = URL.createObjectURL(originalBlob);
+            document.getElementById('originalAudioContainer').style.display = 'block';
+        };
+        originalRecorder.start();
+        
+        // Record converted audio from output
+        const convertedStream = audioContext.createMediaStreamDestination();
+        pitchShifterNode.connect(convertedStream);
+        
+        convertedRecorder = new MediaRecorder(convertedStream.stream);
+        convertedAudioChunks = [];
+        convertedRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                convertedAudioChunks.push(event.data);
+            }
+        };
+        convertedRecorder.onstop = () => {
+            convertedBlob = new Blob(convertedAudioChunks, { type: 'audio/wav' });
+            document.getElementById('convertedAudio').src = URL.createObjectURL(convertedBlob);
+            document.getElementById('convertedAudioContainer').style.display = 'block';
+        };
+        convertedRecorder.start();
+        
+        // Update UI
+        recordButton.textContent = 'Stop Recording';
+        recordingStatus.textContent = 'Recording in progress...';
+        recordingStatus.style.color = 'red';
+        
+    } else {
+        // Stop recording
+        if (originalRecorder && originalRecorder.state !== 'inactive') {
+            originalRecorder.stop();
+        }
+        if (convertedRecorder && convertedRecorder.state !== 'inactive') {
+            convertedRecorder.stop();
+        }
+        
+        // Update UI
+        isRecording = false;
+        recordButton.textContent = 'Start Recording';
+        recordingStatus.textContent = 'Recording stopped';
+        recordingStatus.style.color = 'blue';
+    }
+}
+
+// Function to download original audio
+function downloadOriginalAudio() {
+    if (!originalBlob) {
+        alert('No original audio available to download');
+        return;
+    }
+    
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(originalBlob);
+    downloadLink.download = 'original_audio.wav';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
+
+// Function to download converted audio
+function downloadConvertedAudio() {
+    if (!convertedBlob) {
+        alert('No converted audio available to download');
+        return;
+    }
+    
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(convertedBlob);
+    downloadLink.download = 'converted_audio.wav';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
+
+// Function to clear original audio
+function clearOriginalAudio() {
+    originalBlob = null;
+    originalAudioChunks = [];
+    document.getElementById('originalAudio').src = '';
+    document.getElementById('originalAudioContainer').style.display = 'none';
+}
+
+// Function to clear converted audio
+function clearConvertedAudio() {
+    convertedBlob = null;
+    convertedAudioChunks = [];
+    document.getElementById('convertedAudio').src = '';
+    document.getElementById('convertedAudioContainer').style.display = 'none';
+}
+
 // Initialize event listeners when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     // Set up event listeners
@@ -183,6 +405,13 @@ document.addEventListener('DOMContentLoaded', function() {
             updatePitchShifter(pitchShift);
         }
     });
+    
+    // Add recording event listeners
+    document.getElementById('recordLive').addEventListener('click', toggleLiveRecording);
+    document.getElementById('downloadOriginal').addEventListener('click', downloadOriginalAudio);
+    document.getElementById('downloadConverted').addEventListener('click', downloadConvertedAudio);
+    document.getElementById('clearOriginal').addEventListener('click', clearOriginalAudio);
+    document.getElementById('clearConverted').addEventListener('click', clearConvertedAudio);
     
     // Initialize pitch value display
     updateLivePitchValue();
