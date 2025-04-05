@@ -60,9 +60,9 @@ async function toggleLiveVoiceChange() {
         if (conversionType === 'custom') {
             pitchShift = parseFloat(document.getElementById('livePitch').value);
         } else if (conversionType === 'male_to_female') {
-            pitchShift = 4; // Shift up for male to female
+            pitchShift = -4; // Shift up for male to female
         } else {
-            pitchShift = -4; // Shift down for female to male
+            pitchShift = 4; // Shift down for female to male
         }
         
         // Simple pitch shifting algorithm
