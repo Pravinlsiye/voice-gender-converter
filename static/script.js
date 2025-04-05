@@ -79,52 +79,51 @@ async function uploadAudio() {
     }
 }
 
+// Add at top of file (no import needed for browser version)
+// We'll use the global RecordRTC object
+
+// Function to download recorded audio
+function downloadRecordedAudio() {
+    if (!recordedBlob) {
+        showError('No recording available to download');
+        return;
+    }
+    
+    // Create a temporary link element
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(recordedBlob);
+    downloadLink.download = 'original_recording.mp3';
+    
+    // Append to body, click, and remove
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
+
 // Function to start/stop recording
 async function toggleRecording() {
     const recordButton = document.getElementById('recordButton');
     const recordingStatus = document.getElementById('recordingStatus');
     const recordedAudio = document.getElementById('recordedAudio');
     const convertRecording = document.getElementById('convertRecording');
+    const downloadRecording = document.getElementById('downloadRecording');
     
-    // If not currently recording, start recording
     if (recordButton.textContent === 'Start Recording') {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
-            // Reset audio chunks
-            audioChunks = [];
-            
-            // Create media recorder
-            mediaRecorder = new MediaRecorder(stream);
-            
-            // Event handler for data available
-            mediaRecorder.ondataavailable = (event) => {
-                audioChunks.push(event.data);
-            };
-            
-            // Event handler for when recording stops
-            mediaRecorder.onstop = () => {
-                // Create blob from audio chunks
-                recordedBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                
-                // Create URL for the blob
-                const audioURL = URL.createObjectURL(recordedBlob);
-                
-                // Set audio source and display
-                recordedAudio.src = audioURL;
-                recordedAudio.style.display = 'block';
-                convertRecording.style.display = 'block';
-                
-                // Update status
-                recordingStatus.textContent = 'Recording complete';
-                recordingStatus.style.color = 'green';
-                
-                // Stop all tracks in the stream
-                stream.getTracks().forEach(track => track.stop());
-            };
+            // Initialize RecordRTC with MP3 recording
+            mediaRecorder = new RecordRTC(stream, {
+                type: 'audio',
+                mimeType: 'audio/mp3',
+                recorderType: RecordRTC.StereoAudioRecorder,
+                numberOfAudioChannels: 1,
+                desiredSampRate: 44100,
+                bitRate: 128
+            });
             
             // Start recording
-            mediaRecorder.start();
+            mediaRecorder.startRecording();
             
             // Update UI
             recordButton.textContent = 'Stop Recording';
@@ -132,18 +131,50 @@ async function toggleRecording() {
             recordingStatus.style.color = 'red';
             recordedAudio.style.display = 'none';
             convertRecording.style.display = 'none';
+            downloadRecording.style.display = 'none';
             
         } catch (error) {
             showError('Error accessing microphone: ' + error.message);
         }
     } else {
         // Stop recording
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-            recordButton.textContent = 'Start Recording';
+        if (mediaRecorder) {
+            mediaRecorder.stopRecording(() => {
+                // Get the recorded blob
+                recordedBlob = mediaRecorder.getBlob();
+                
+                // Create URL for the blob
+                const audioURL = URL.createObjectURL(recordedBlob);
+                
+                // Set audio source and display
+                recordedAudio.src = audioURL;
+                recordedAudio.style.display = 'block';
+                downloadRecording.style.display = 'inline-block';
+                convertRecording.style.display = 'block';
+                
+                // Update status
+                recordingStatus.textContent = 'Recording complete';
+                recordingStatus.style.color = 'green';
+                recordButton.textContent = 'Start Recording';
+                
+                // Stop all tracks in the stream
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            });
         }
     }
 }
+
+// Initialize event listeners when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up event listeners
+    document.getElementById('recordButton').addEventListener('click', toggleRecording);
+    document.getElementById('convertRecording').addEventListener('click', convertRecording);
+    document.getElementById('customPitch').addEventListener('input', updatePitchValue);
+    document.getElementById('downloadRecording').addEventListener('click', downloadRecordedAudio);
+    
+    // Initialize pitch value display
+    updatePitchValue();
+});
 
 // Function to convert recorded audio
 async function convertRecording() {
@@ -159,7 +190,8 @@ async function convertRecording() {
     const conversionType = document.getElementById('conversionType').value;
     
     const formData = new FormData();
-    formData.append('audio', recordedBlob, 'recording.wav');
+    // Ensure we're sending an MP3 file with the correct extension
+    formData.append('audio', recordedBlob, 'recording.mp3');
     formData.append('conversion_type', conversionType);
     
     // Add custom pitch if selected
@@ -184,10 +216,10 @@ async function convertRecording() {
             resultDiv.style.display = 'block';
             errorDiv.style.display = 'none';
         } else {
-            showError(data.error);
+            showError(data.error || 'Conversion failed');
         }
     } catch (error) {
-        showError('An error occurred during conversion');
+        showError('An error occurred during conversion: ' + error.message);
     }
 }
 
@@ -203,14 +235,3 @@ function showError(message) {
 function updatePitchValue() {
     document.getElementById('pitchValue').textContent = document.getElementById('customPitch').value;
 }
-
-// Initialize event listeners when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Set up event listeners
-    document.getElementById('recordButton').addEventListener('click', toggleRecording);
-    document.getElementById('convertRecording').addEventListener('click', convertRecording);
-    document.getElementById('customPitch').addEventListener('input', updatePitchValue);
-    
-    // Initialize pitch value display
-    updatePitchValue();
-});

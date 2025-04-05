@@ -46,6 +46,7 @@
                 <button id="recordButton" class="action-button">Start Recording</button>
                 <div id="recordingStatus"></div>
                 <audio id="recordedAudio" controls style="display: none;"></audio>
+                <button id="downloadRecording" class="download-button" style="display: none;">Download Recording</button>
                 <button id="convertRecording" class="action-button" style="display: none;">Convert Recording</button>
             </div>
         </div>
@@ -59,5 +60,6 @@
         <div id="error" class="error-message" style="display: none;"></div>
     </div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="https://www.webrtc-experiment.com/RecordRTC.js"></script>
 </body>
 </html>
