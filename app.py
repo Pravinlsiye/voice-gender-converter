@@ -4,6 +4,8 @@ from werkzeug.utils import secure_filename
 import librosa
 import soundfile as sf
 import numpy as np
+from datetime import datetime, timedelta
+import shutil
 
 app = Flask(__name__)
 
@@ -11,6 +13,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 CONVERTED_FOLDER = 'converted'
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg'}
+FILE_LIFETIME_HOURS = 24  # Files older than this will be deleted
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['CONVERTED_FOLDER'] = CONVERTED_FOLDER
@@ -23,40 +26,61 @@ def ensure_directories():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     os.makedirs(CONVERTED_FOLDER, exist_ok=True)
 
-def process_audio(input_path, output_path):
-    # Load the audio file
+def cleanup_old_files():
+    cutoff_time = datetime.now() - timedelta(hours=FILE_LIFETIME_HOURS)
+    for folder in [UPLOAD_FOLDER, CONVERTED_FOLDER]:
+        if os.path.exists(folder):
+            for filename in os.listdir(folder):
+                filepath = os.path.join(folder, filename)
+                file_time = datetime.fromtimestamp(os.path.getctime(filepath))
+                if file_time < cutoff_time:
+                    os.remove(filepath)
+
+def process_audio(input_path, output_path, conversion_type='male_to_female', pitch_shift=None):
     y, sr = librosa.load(input_path)
     
-    # Pitch shift up by 4 semitones (adjust this value as needed)
-    y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=4)
+    if pitch_shift is not None:
+        n_steps = float(pitch_shift)
+    else:
+        n_steps = 4 if conversion_type == 'male_to_female' else -4
     
-    # Save the processed audio
+    y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=n_steps)
     sf.write(output_path, y_shifted, sr)
 
 @app.route('/')
 def index():
+    cleanup_old_files()
     return render_template('index.html')
+
+@app.route('/live')
+def live():
+    return render_template('live.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     ensure_directories()
+    cleanup_old_files()
     
     if 'audio' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     
     file = request.files['audio']
+    conversion_type = request.form.get('conversion_type', 'male_to_female')
+    custom_pitch = request.form.get('custom_pitch')
+    
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        output_filename = f'converted_{filename}'
+        output_filename = f'converted_{timestamp}_{filename}'
         output_path = os.path.join(app.config['CONVERTED_FOLDER'], output_filename)
         
         try:
             file.save(input_path)
-            process_audio(input_path, output_path)
+            process_audio(input_path, output_path, conversion_type, custom_pitch)
             
             return jsonify({
                 'message': 'File processed successfully',
@@ -66,6 +90,14 @@ def upload_file():
             return jsonify({'error': str(e)}), 500
     
     return jsonify({'error': 'Invalid file type'}), 400
+
+@app.route('/cleanup', methods=['POST'])
+def cleanup():
+    try:
+        cleanup_old_files()
+        return jsonify({'message': 'Cleanup completed successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/converted/<filename>')
 def converted_file(filename):

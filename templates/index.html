@@ -8,12 +8,46 @@
 </head>
 <body>
     <div class="container">
+        <nav class="nav-menu">
+            <a href="/" class="active">Upload/Record</a>
+            <a href="/live">Live Voice Changer</a>
+        </nav>
+
         <h1>Voice Gender Converter</h1>
-        <p>Upload a male voice audio file to convert it to a female voice</p>
         
-        <div class="upload-container">
-            <input type="file" id="audioFile" accept=".wav,.mp3,.ogg" class="file-input">
-            <button onclick="uploadAudio()" class="upload-button">Convert Voice</button>
+        <div class="conversion-options">
+            <select id="conversionType" onchange="toggleCustomPitch()">
+                <option value="male_to_female">Male to Female</option>
+                <option value="female_to_male">Female to Male</option>
+                <option value="custom">Custom Pitch</option>
+            </select>
+            
+            <div id="customPitchControl" style="display: none;">
+                <label for="customPitch">Pitch Adjustment (-12 to 12):</label>
+                <input type="range" id="customPitch" min="-12" max="12" value="0" step="0.5">
+                <span id="pitchValue">0</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('upload')">Upload File</button>
+            <button class="tab-button" onclick="showTab('record')">Record Audio</button>
+        </div>
+
+        <div id="uploadTab" class="tab-content">
+            <div class="upload-container">
+                <input type="file" id="audioFile" accept=".wav,.mp3,.ogg">
+                <button onclick="uploadAudio()" class="action-button">Convert Voice</button>
+            </div>
+        </div>
+
+        <div id="recordTab" class="tab-content" style="display: none;">
+            <div class="record-container">
+                <button id="recordButton" class="action-button">Start Recording</button>
+                <div id="recordingStatus"></div>
+                <audio id="recordedAudio" controls style="display: none;"></audio>
+                <button id="convertRecording" class="action-button" style="display: none;">Convert Recording</button>
+            </div>
         </div>
 
         <div id="result" class="result-container" style="display: none;">

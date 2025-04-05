@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Voice Changer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav class="nav-menu">
+            <a href="/">Upload/Record</a>
+            <a href="/live" class="active">Live Voice Changer</a>
+        </nav>
+
+        <h1>Live Voice Changer</h1>
+        
+        <div class="conversion-options">
+            <select id="liveConversionType" onchange="updateLiveEffect()">
+                <option value="male_to_female">Male to Female</option>
+                <option value="female_to_male">Female to Male</option>
+                <option value="custom">Custom Pitch</option>
+            </select>
+            
+            <div id="livePitchControl" style="display: none;">
+                <label for="livePitch">Pitch Adjustment (-12 to 12):</label>
+                <input type="range" id="livePitch" min="-12" max="12" value="0" step="0.5">
+                <span id="livePitchValue">0</span>
+            </div>
+        </div>
+
+        <div class="live-controls">
+            <button id="startLive" class="action-button">Start Live Voice Change</button>
+            <div id="liveStatus" class="status-message"></div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='live.js') }}"></script>
+</body>
+</html>
