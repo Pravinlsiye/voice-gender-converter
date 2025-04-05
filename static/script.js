@@ -107,6 +107,7 @@ async function toggleRecording() {
     const recordedAudio = document.getElementById('recordedAudio');
     const convertRecording = document.getElementById('convertRecording');
     const downloadRecording = document.getElementById('downloadRecording');
+    const clearRecording = document.getElementById('clearRecording');
     
     if (recordButton.textContent === 'Start Recording') {
         try {
@@ -132,6 +133,7 @@ async function toggleRecording() {
             recordedAudio.style.display = 'none';
             convertRecording.style.display = 'none';
             downloadRecording.style.display = 'none';
+            clearRecording.style.display = 'none';
             
         } catch (error) {
             showError('Error accessing microphone: ' + error.message);
@@ -150,6 +152,7 @@ async function toggleRecording() {
                 recordedAudio.src = audioURL;
                 recordedAudio.style.display = 'block';
                 downloadRecording.style.display = 'inline-block';
+                clearRecording.style.display = 'inline-block';
                 convertRecording.style.display = 'block';
                 
                 // Update status
@@ -164,6 +167,42 @@ async function toggleRecording() {
     }
 }
 
+// Function to clear recording and reset UI
+function clearRecording() {
+    // Clear the recorded blob
+    recordedBlob = null;
+    audioChunks = [];
+    
+    // Reset UI elements
+    const recordedAudio = document.getElementById('recordedAudio');
+    const convertRecording = document.getElementById('convertRecording');
+    const downloadRecording = document.getElementById('downloadRecording');
+    const clearRecording = document.getElementById('clearRecording');
+    const recordingStatus = document.getElementById('recordingStatus');
+    
+    recordedAudio.style.display = 'none';
+    recordedAudio.src = '';
+    convertRecording.style.display = 'none';
+    downloadRecording.style.display = 'none';
+    clearRecording.style.display = 'none';
+    recordingStatus.textContent = 'Recording cleared';
+    recordingStatus.style.color = 'blue';
+    
+    // Also clear the conversion result if present
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('audioPlayer').src = '';
+    document.getElementById('downloadLink').href = '';
+}
+
+// Function to clear conversion results
+function clearConversionResults() {
+    // Clear the conversion result
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('audioPlayer').src = '';
+    document.getElementById('downloadLink').href = '';
+    document.getElementById('error').style.display = 'none';
+}
+
 // Initialize event listeners when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     // Set up event listeners
@@ -171,6 +210,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('convertRecording').addEventListener('click', convertRecording);
     document.getElementById('customPitch').addEventListener('input', updatePitchValue);
     document.getElementById('downloadRecording').addEventListener('click', downloadRecordedAudio);
+    document.getElementById('clearRecording').addEventListener('click', clearRecording);
+    document.getElementById('clearResults').addEventListener('click', clearConversionResults);
     
     // Initialize pitch value display
     updatePitchValue();

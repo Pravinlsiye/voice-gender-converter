@@ -46,7 +46,8 @@
                 <button id="recordButton" class="action-button">Start Recording</button>
                 <div id="recordingStatus"></div>
                 <audio id="recordedAudio" controls style="display: none;"></audio>
-                <button id="downloadRecording" class="download-button" style="display: none;">Download Recording</button>
+                <a id="downloadRecording" class="download-button" style="display: none;">Download Recording</a>
+                <a id="clearRecording" class="download-button" style="display: none;">Clear Recording</a>
                 <button id="convertRecording" class="action-button" style="display: none;">Convert Recording</button>
             </div>
         </div>
@@ -55,6 +56,7 @@
             <h2>Converted Audio</h2>
             <audio id="audioPlayer" controls></audio>
             <a id="downloadLink" class="download-button">Download Converted Audio</a>
+            <a id="clearResults" class="download-button">Clear Results</a>
         </div>
 
         <div id="error" class="error-message" style="display: none;"></div>
