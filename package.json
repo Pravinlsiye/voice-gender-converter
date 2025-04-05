@@ -1,0 +1,12 @@
+{
+  "name": "voice-gender-converter",
+  "version": "1.0.0",
+  "description": "A web application that converts voice gender using pitch shifting",
+  "main": "app.py",
+  "scripts": {
+    "start": "python app.py"
+  },
+  "dependencies": {
+    "recordrtc": "^5.6.2"
+  }
+}
