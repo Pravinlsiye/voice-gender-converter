@@ -56,6 +56,40 @@ def index():
 def live():
     return render_template('live.html')
 
+@app.route('/admin')
+def admin():
+    # Get list of uploaded files
+    uploaded_files = []
+    if os.path.exists(UPLOAD_FOLDER):
+        for filename in os.listdir(UPLOAD_FOLDER):
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            file_time = datetime.fromtimestamp(os.path.getctime(filepath))
+            file_size = os.path.getsize(filepath) / 1024  # Size in KB
+            uploaded_files.append({
+                'name': filename,
+                'path': filepath,
+                'created': file_time,
+                'size': round(file_size, 2)
+            })
+    
+    # Get list of converted files
+    converted_files = []
+    if os.path.exists(CONVERTED_FOLDER):
+        for filename in os.listdir(CONVERTED_FOLDER):
+            filepath = os.path.join(CONVERTED_FOLDER, filename)
+            file_time = datetime.fromtimestamp(os.path.getctime(filepath))
+            file_size = os.path.getsize(filepath) / 1024  # Size in KB
+            converted_files.append({
+                'name': filename,
+                'path': filepath,
+                'created': file_time,
+                'size': round(file_size, 2)
+            })
+    
+    return render_template('admin.html', 
+                          uploaded_files=sorted(uploaded_files, key=lambda x: x['created'], reverse=True),
+                          converted_files=sorted(converted_files, key=lambda x: x['created'], reverse=True))
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     ensure_directories()
@@ -102,6 +136,27 @@ def cleanup():
 @app.route('/converted/<filename>')
 def converted_file(filename):
     return send_from_directory(app.config['CONVERTED_FOLDER'], filename)
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/delete/<folder>/<filename>', methods=['POST'])
+def delete_file(folder, filename):
+    if folder not in ['uploads', 'converted']:
+        return jsonify({'error': 'Invalid folder'}), 400
+    
+    folder_path = app.config['UPLOAD_FOLDER'] if folder == 'uploads' else app.config['CONVERTED_FOLDER']
+    file_path = os.path.join(folder_path, filename)
+    
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            return jsonify({'message': f'File {filename} deleted successfully'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    else:
+        return jsonify({'error': 'File not found'}), 404
 
 if __name__ == '__main__':
     app.run(debug=True)

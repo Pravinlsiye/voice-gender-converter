@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Voice Gender Converter</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .file-section {
+            margin-bottom: 30px;
+        }
+        .file-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .file-table th, .file-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .file-table th {
+            background-color: #f2f2f2;
+        }
+        .file-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .file-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .file-actions button, .file-actions a {
+            padding: 5px 10px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            min-width: 80px;
+            border-radius: 3px;
+        }
+        .delete-btn {
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+        }
+        .play-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+        }
+        .download-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+        }
+        .audio-player {
+            margin-top: 10px;
+            width: 100%;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container admin-container">
+        <nav class="nav-menu">
+            <a href="/">Upload/Record</a>
+            <a href="/live">Live Voice Changer</a>
+            <a href="/admin" class="active">Admin</a>
+        </nav>
+
+        <h1>Admin Dashboard</h1>
+        
+        <div class="file-section">
+            <h2>Uploaded Files</h2>
+            {% if uploaded_files %}
+            <table class="file-table">
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Created</th>
+                        <th>Size (KB)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in uploaded_files %}
+                    <tr id="upload-row-{{ loop.index }}">
+                        <td>{{ file.name }}</td>
+                        <td>{{ file.created.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ file.size }}</td>
+                        <td class="file-actions">
+                            <button class="play-btn" onclick="toggleAudio('upload-audio-{{ loop.index }}', '/uploads/{{ file.name }}')">Play</button>
+                            <a href="/uploads/{{ file.name }}" download class="download-btn">Download</a>
+                            <button class="delete-btn" onclick="deleteFile('uploads', '{{ file.name }}', 'upload-row-{{ loop.index }}')">Delete</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">
+                            <audio id="upload-audio-{{ loop.index }}" class="audio-player" controls>
+                                <source src="/uploads/{{ file.name }}" type="audio/mpeg">
+                                Your browser does not support the audio element.
+                            </audio>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No uploaded files found.</p>
+            {% endif %}
+        </div>
+        
+        <div class="file-section">
+            <h2>Converted Files</h2>
+            {% if converted_files %}
+            <table class="file-table">
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Created</th>
+                        <th>Size (KB)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in converted_files %}
+                    <tr id="convert-row-{{ loop.index }}">
+                        <td>{{ file.name }}</td>
+                        <td>{{ file.created.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ file.size }}</td>
+                        <td class="file-actions">
+                            <button class="play-btn" onclick="toggleAudio('convert-audio-{{ loop.index }}', '/converted/{{ file.name }}')">Play</button>
+                            <a href="/converted/{{ file.name }}" download class="download-btn">Download</a>
+                            <button class="delete-btn" onclick="deleteFile('converted', '{{ file.name }}', 'convert-row-{{ loop.index }}')">Delete</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">
+                            <audio id="convert-audio-{{ loop.index }}" class="audio-player" controls>
+                                <source src="/converted/{{ file.name }}" type="audio/mpeg">
+                                Your browser does not support the audio element.
+                            </audio>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No converted files found.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function toggleAudio(audioId, src) {
+            const audioElement = document.getElementById(audioId);
+            if (audioElement.style.display === 'none' || audioElement.style.display === '') {
+                audioElement.style.display = 'block';
+                // Ensure the source is set
+                if (!audioElement.querySelector('source').src.includes(src)) {
+                    audioElement.querySelector('source').src = src;
+                    audioElement.load();
+                }
+                audioElement.play();
+            } else {
+                audioElement.pause();
+                audioElement.style.display = 'none';
+            }
+        }
+
+        function deleteFile(folder, filename, rowId) {
+            if (confirm(`Are you sure you want to delete ${filename}?`)) {
+                fetch(`/delete/${folder}/${filename}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        // Remove the row from the table
+                        const row = document.getElementById(rowId);
+                        const audioRow = row.nextElementSibling;
+                        row.parentNode.removeChild(row);
+                        audioRow.parentNode.removeChild(audioRow);
+                        alert(data.message);
+                    } else {
+                        alert(data.error || 'An error occurred');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while deleting the file');
+                });
+            }
+        }
+    </script>
+</body>
+</html>
